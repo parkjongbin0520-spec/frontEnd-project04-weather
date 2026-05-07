@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>날씨 기반 동적 코디 추천 (객체 렌더링)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        
+        body {
+            font-family: 'Pretendard', sans-serif;
+            transition: background 1s ease, color 1s ease;
+        }
+
+        ::-webkit-scrollbar { height: 8px; width: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.25); }
+
+        .glass-card {
+            background: var(--card-bg, rgba(255, 255, 255, 0.6));
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border, rgba(255, 255, 255, 0.3));
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
+            transition: all 1s ease;
+        }
+
+        .text-theme-main { color: var(--text-main, #1f2937); transition: color 1s ease; }
+        .text-theme-sub { color: var(--text-sub, #4b5563); transition: color 1s ease; }
+        .bg-theme-accent { background-color: var(--accent-color, #3b82f6); transition: background-color 1s ease; }
+        .text-theme-accent { color: var(--accent-color, #3b82f6); transition: color 1s ease; }
+
+        .svg-layer {
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        /* 옷 갈아입을 때 페이드 효과 */
+        .clothes-fade-enter { opacity: 0; transform: scale(0.95); }
+        .clothes-fade-enter-active { opacity: 1; transform: scale(1); transition: all 0.3s ease-out; }
+    </style>
+</head>
+<body class="min-h-screen text-gray-800" style="background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);">
+
+    <div class="max-w-5xl mx-auto p-4 md:p-8 space-y-6">
+        
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row justify-between items-center gap-4 mb-8 glass-card rounded-2xl p-4">
+            <div>
+                <h1 class="text-2xl font-bold text-theme-main flex items-center gap-2">
+                    <i class="fa-solid fa-cloud-sun"></i> Weather Style <span class="text-xs bg-theme-accent text-white px-2 py-1 rounded-md ml-2">Object Render</span>
+                </h1>
+                <p class="text-sm text-theme-sub">실시간 렌더링되는 날씨 맞춤형 아바타 코디</p>
+            </div>
+            <button onclick="randomizeWeather()" class="bg-theme-accent text-white px-5 py-2.5 rounded-xl font-medium shadow-md hover:opacity-90 transition-opacity active:scale-95 flex items-center gap-2">
+                <i class="fa-solid fa-dice"></i> 랜덤 날씨 생성
+            </button>
+        </header>
+
+        <!-- Main Weather Dashboard -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Left: Current Weather Info -->
+            <div class="glass-card rounded-3xl p-8 lg:col-span-1 flex flex-col justify-center items-center text-center relative overflow-hidden">
+                <h2 id="current-location" class="text-lg font-medium text-theme-sub mb-2 z-10">서울특별시</h2>
+                <div class="text-8xl my-4 z-10" id="current-icon">☀️</div>
+                <div class="flex items-baseline gap-2 z-10 mb-2">
+                    <span id="temp-c" class="text-6xl font-extrabold text-theme-main">24°</span>
+                    <span id="temp-f" class="text-xl font-medium text-theme-sub">75°F</span>
+                </div>
+                <p id="current-desc" class="text-xl font-semibold text-theme-main z-10">맑고 화창함</p>
+                <div class="mt-4 px-4 py-1.5 rounded-full text-sm font-bold backdrop-blur-md border z-10 transition-colors" id="pm25-badge" style="background: rgba(34, 197, 94, 0.1); color: #16a34a; border-color: rgba(34, 197, 94, 0.3);">
+                    미세먼지: 좋음 (15µg/m³)
+                </div>
+            </div>
+
+            <!-- Right: Weather Details -->
+            <div class="glass-card rounded-3xl p-6 lg:col-span-2 grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div class="flex flex-col items-center justify-center p-4 rounded-2xl bg-white/40 border border-white/20">
+                    <i class="fa-solid fa-umbrella text-theme-accent text-2xl mb-2"></i>
+                    <span class="text-sm text-theme-sub mb-1">강수확률</span>
+                    <span id="detail-precip" class="text-xl font-bold text-theme-main">10%</span>
+                </div>
+                <div class="flex flex-col items-center justify-center p-4 rounded-2xl bg-white/40 border border-white/20">
+                    <i class="fa-solid fa-droplet text-theme-accent text-2xl mb-2"></i>
+                    <span class="text-sm text-theme-sub mb-1">습도</span>
+                    <span id="detail-humidity" class="text-xl font-bold text-theme-main">45%</span>
+                </div>
+                <div class="flex flex-col items-center justify-center p-4 rounded-2xl bg-white/40 border border-white/20">
+                    <i class="fa-solid fa-wind text-theme-accent text-2xl mb-2"></i>
+                    <span class="text-sm text-theme-sub mb-1">풍속</span>
+                    <span id="detail-wind" class="text-xl font-bold text-theme-main">2.5 m/s</span>
+                </div>
+                <div class="flex flex-col items-center justify-center p-4 rounded-2xl bg-white/40 border border-white/20">
+                    <i class="fa-regular fa-sun text-theme-accent text-2xl mb-2"></i>
+                    <span class="text-sm text-theme-sub mb-1">일조량</span>
+                    <span id="detail-sun" class="text-xl font-bold text-theme-main">강함</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fashion Recommendation Section (Object Rendered) -->
+        <div class="glass-card rounded-3xl p-6 lg:p-8">
+            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
+                <div>
+                    <h3 class="text-2xl font-bold text-theme-main"><i class="fa-solid fa-layer-group mr-2"></i>오늘의 추천 코디</h3>
+                    <p class="text-theme-sub mt-1">팔레트 및 객체 모델링을 결합한 스타일링 결과</p>
+                </div>
+                
+                <!-- Controls -->
+                <div class="flex flex-wrap gap-3 w-full lg:w-auto">
+                    <div class="flex rounded-xl overflow-hidden border border-gray-200/50 shadow-sm bg-white/50 p-1">
+                        <button onclick="setGender('남성')" id="btn-gender-m" class="px-4 py-2 rounded-lg text-sm font-medium transition-all bg-theme-accent text-white shadow-sm">남성</button>
+                        <button onclick="setGender('여성')" id="btn-gender-f" class="px-4 py-2 rounded-lg text-sm font-medium transition-all text-theme-sub hover:bg-white/50">여성</button>
+                    </div>
+                    
+                    <select id="style-select" onchange="styleChanged()" class="bg-white/50 border border-gray-200/50 text-theme-main text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-2.5 outline-none shadow-sm font-medium">
+                        <option value="캐주얼룩">캐주얼룩</option>
+                        <option value="데이트룩">데이트룩</option>
+                        <option value="비즈니스룩">비즈니스룩</option>
+                        <option value="일상룩">일상룩</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Avatar Render Area -->
+            <div class="relative w-full max-w-sm mx-auto aspect-[3/4] rounded-2xl overflow-hidden bg-white/40 flex items-center justify-center border border-white/60 shadow-inner group p-4">
+                
+                <div id="fashion-canvas-container" class="w-full h-full flex items-center justify-center transition-transform duration-500 group-hover:scale-105">
+                    <!-- SVG layers will be injected here -->
+                </div>
+                
+                <!-- Info Overlay -->
+                <div class="absolute bottom-4 right-4 bg-white/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-gray-100 shadow-sm text-xs font-medium text-theme-main text-right">
+                    <div id="render-season-info">여름 코디</div>
+                    <div id="render-palette-info" class="text-[10px] text-theme-sub">스카이블루 팔레트</div>
+                </div>
+            </div>
+            
+            <div class="mt-4 text-center">
+                <p class="text-xs text-theme-sub italic"><i class="fa-solid fa-puzzle-piece mr-1"></i>선택된 날씨 정보와 팔레트에 맞게 개별 의상 객체를 불러와 조립했습니다.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 날씨 상태 객체
+        let weatherState = {
+            condition: '맑음',
+            tempC: 24,
+            humidity: 45,
+            wind: 2.5,
+            precip: 10,
+            sunlight: '강함',
+            pm25: 15
+        };
+
+        // 패션 상태 객체
+        let fashionState = {
+            gender: '남성',
+            style: '캐주얼룩'
+        };
+
+        // 컬러 팔레트 매핑 (CSS Hex 코드 활용을 위해 구조 개편)
+        const themes = {
+            '맑음': {
+                bg: 'linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%)',
+                cardBg: 'rgba(255, 255, 255, 0.7)',
+                cardBorder: 'rgba(255, 255, 255, 0.5)',
+                textMain: '#0369a1',   // 옷의 주색상으로도 활용
+                textSub: '#38bdf8',    // 서브 색상
+                accent: '#0ea5e9',     // 포인트 색상
+                themeDesc: '화창한 스카이블루',
+                icon: '☀️'
+            },
+            '흐림': {
+                bg: 'linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%)',
+                cardBg: 'rgba(255, 255, 255, 0.6)',
+                cardBorder: 'rgba(255, 255, 255, 0.4)',
+                textMain: '#334155',
+                textSub: '#94a3b8',
+                accent: '#64748b',
+                themeDesc: '차분한 모노톤',
+                icon: '☁️'
+            },
+            '비': {
+                bg: 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)',
+                cardBg: 'rgba(255, 255, 255, 0.85)',
+                cardBorder: 'rgba(255, 255, 255, 0.2)',
+                textMain: '#0f172a',
+                textSub: '#475569',
+                accent: '#3b82f6',
+                themeDesc: '깊은 네이비',
+                icon: '🌧️'
+            },
+            '눈': {
+                bg: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
+                cardBg: 'rgba(255, 255, 255, 0.9)',
+                cardBorder: 'rgba(255, 255, 255, 0.8)',
+                textMain: '#1e293b',
+                textSub: '#cbd5e1',
+                accent: '#0284c7',
+                themeDesc: '순백색과 아이스 블루',
+                icon: '❄️'
+            },
+            '미세먼지': {
+                bg: 'linear-gradient(135deg, #fef08a 0%, #fed7aa 100%)',
+                cardBg: 'rgba(255, 255, 255, 0.7)',
+                cardBorder: 'rgba(255, 255, 255, 0.4)',
+                textMain: '#713f12',
+                textSub: '#ca8a04',
+                accent: '#d97706',
+                themeDesc: '뮤트 카키와 웜 오렌지',
+                icon: '🌫️'
+            }
+        };
+
+        // --- SVG 기반 의상 객체 라이브러리 ---
+        const svgLibrary = {
+            // 아바타 베이스
+            head: `<circle cx="100" cy="50" r="22" fill="#ffe4c4" class="svg-layer"/><rect x="95" y="70" width="10" height="15" fill="#ffe4c4" class="svg-layer"/>`,
+            maleBase: `<path d="M75,85 L125,85 L120,190 L80,190 Z" fill="#f1f5f9" class="svg-layer"/>`,
+            femaleBase: `<path d="M80,85 Q100,95 120,85 Q125,140 125,190 L75,190 Q75,140 80,85 Z" fill="#f1f5f9" class="svg-layer"/>`,
+            legs: `<path d="M85,190 L85,320 L95,320 L95,190 M115,190 L115,320 L105,320 L105,190" fill="#ffe4c4" stroke="#ffe4c4" stroke-width="2" class="svg-layer"/>`,
+            shoes: `<path d="M80,320 L98,320 L98,335 L75,335 Z M102,320 L120,320 L125,335 L102,335 Z" fill="#1f2937" class="svg-layer"/>`,
+            
+            // 상의
+            tshirt: `<path d="M70,82 L130,82 L135,120 L120,110 L120,185 L80,185 L80,110 L65,120 Z" fill="VAR_COLOR" class="svg-layer"/>`,
+            shirt: `<path d="M70,82 L130,82 L135,130 L120,120 L120,185 L80,185 L80,120 L65,130 Z" fill="VAR_COLOR" class="svg-layer"/><line x1="100" y1="85" x2="100" y2="185" stroke="rgba(255,255,255,0.3)" stroke-width="2" class="svg-layer"/>`,
+            sweater: `<path d="M65,82 L135,82 L140,160 L120,150 L120,190 L80,190 L80,150 L60,160 Z" fill="VAR_COLOR" class="svg-layer"/>`,
+            
+            // 하의
+            shorts: `<path d="M78,180 L122,180 L125,250 L105,240 L100,210 L95,240 L75,250 Z" fill="VAR_COLOR" class="svg-layer"/>`,
+            longPants: `<path d="M78,180 L122,180 L125,325 L105,325 L100,210 L95,325 L75,325 Z" fill="VAR_COLOR" class="svg-layer"/>`,
+            skirt: `<path d="M78,180 L122,180 L135,260 L65,260 Z" fill="VAR_COLOR" class="svg-layer"/>`,
+            dress: `<path d="M75,85 L125,85 L140,260 L60,260 Z" fill="VAR_COLOR" class="svg-layer"/>`,
+
+            // 아우터
+            jacket: `<path d="M65,80 L135,80 L140,190 L120,190 L120,100 L80,100 L80,190 L60,190 Z" fill="VAR_COLOR" class="svg-layer"/>`,
+            coat: `<path d="M62,80 L138,80 L145,280 L120,280 L120,100 L80,100 L80,280 L55,280 Z" fill="VAR_COLOR" class="svg-layer"/>`,
+            padding: `<path d="M60,80 L140,80 L145,200 L120,200 L120,100 L80,100 L80,200 L55,200 Z" fill="VAR_COLOR" stroke="rgba(0,0,0,0.1)" stroke-width="2" class="svg-layer"/>`,
+            
+            // 악세서리
+            umbrella: `<path d="M30,100 Q100,30 170,100 Z" fill="VAR_COLOR" class="svg-layer"/><rect x="98" y="100" width="4" height="150" fill="#4b5563" class="svg-layer"/>`,
+            scarf: `<path d="M85,80 Q100,95 115,80 L120,90 Q100,105 80,90 Z M110,85 L110,140 L95,135 L95,85 Z" fill="VAR_COLOR" class="svg-layer"/>`
+        };
+
+        // --- 코디 룰 매핑 ---
+        // 계절별(온도), 성별, 스타일에 따른 객체 조립 규칙
+        const outfitRules = {
+            '남성': {
+                '캐주얼룩': {
+                    HOT:  { top: 'tshirt', topColor: 'textMain', bottom: 'shorts', bottomColor: 'accent' },
+                    WARM: { top: 'tshirt', topColor: 'textMain', bottom: 'longPants', bottomColor: 'textSub' },
+                    COOL: { top: 'tshirt', topColor: 'textSub', outer: 'jacket', outerColor: 'accent', bottom: 'longPants', bottomColor: 'textMain' },
+                    COLD: { top: 'sweater', topColor: 'textSub', outer: 'padding', outerColor: 'textMain', bottom: 'longPants', bottomColor: 'accent' }
+                },
+                '비즈니스룩': {
+                    HOT:  { top: 'shirt', topColor: 'textSub', bottom: 'longPants', bottomColor: 'textMain' },
+                    WARM: { top: 'shirt', topColor: 'accent', bottom: 'longPants', bottomColor: 'textMain' },
+                    COOL: { top: 'shirt', topColor: 'textSub', outer: 'jacket', outerColor: 'textMain', bottom: 'longPants', bottomColor: 'textMain' },
+                    COLD: { top: 'shirt', topColor: 'textSub', outer: 'coat', outerColor: 'textMain', bottom: 'longPants', bottomColor: 'textSub' }
+                },
+                '데이트룩': {
+                    HOT:  { top: 'shirt', topColor: 'accent', bottom: 'shorts', bottomColor: 'textMain' },
+                    WARM: { top: 'shirt', topColor: 'textMain', bottom: 'longPants', bottomColor: 'textSub' },
+                    COOL: { top: 'tshirt', topColor: 'textSub', outer: 'jacket', outerColor: 'textMain', bottom: 'longPants', bottomColor: 'textSub' },
+                    COLD: { top: 'sweater', topColor: 'accent', outer: 'coat', outerColor: 'textMain', bottom: 'longPants', bottomColor: 'textSub' }
+                },
+                '일상룩': {
+                    HOT:  { top: 'tshirt', topColor: 'textSub', bottom: 'shorts', bottomColor: 'textMain' },
+                    WARM: { top: 'tshirt', topColor: 'accent', bottom: 'longPants', bottomColor: 'textMain' },
+                    COOL: { top: 'sweater', topColor: 'textMain', bottom: 'longPants', bottomColor: 'accent' },
+                    COLD: { top: 'sweater', topColor: 'textSub', outer: 'padding', outerColor: 'accent', bottom: 'longPants', bottomColor: 'textMain' }
+                }
+            },
+            '여성': {
+                '캐주얼룩': {
+                    HOT:  { top: 'tshirt', topColor: 'accent', bottom: 'skirt', bottomColor: 'textMain' },
+                    WARM: { top: 'tshirt', topColor: 'textMain', bottom: 'longPants', bottomColor: 'textSub' },
+                    COOL: { top: 'tshirt', topColor: 'textSub', outer: 'jacket', outerColor: 'accent', bottom: 'longPants', bottomColor: 'textMain' },
+                    COLD: { top: 'sweater', topColor: 'textSub', outer: 'padding', outerColor: 'textMain', bottom: 'longPants', bottomColor: 'accent' }
+                },
+                '비즈니스룩': {
+                    HOT:  { top: 'shirt', topColor: 'textSub', bottom: 'skirt', bottomColor: 'textMain' },
+                    WARM: { top: 'shirt', topColor: 'accent', bottom: 'longPants', bottomColor: 'textMain' },
+                    COOL: { top: 'shirt', topColor: 'textSub', outer: 'jacket', outerColor: 'textMain', bottom: 'longPants', bottomColor: 'textMain' },
+                    COLD: { top: 'shirt', topColor: 'textSub', outer: 'coat', outerColor: 'textMain', bottom: 'longPants', bottomColor: 'textSub' }
+                },
+                '데이트룩': {
+                    HOT:  { top: 'dress', topColor: 'accent', bottom: null }, // 원피스
+                    WARM: { top: 'shirt', topColor: 'textMain', bottom: 'skirt', bottomColor: 'accent' },
+                    COOL: { top: 'dress', topColor: 'textSub', outer: 'jacket', outerColor: 'textMain', bottom: null },
+                    COLD: { top: 'sweater', topColor: 'accent', outer: 'coat', outerColor: 'textMain', bottom: 'skirt', bottomColor: 'textSub' }
+                },
+                '일상룩': {
+                    HOT:  { top: 'tshirt', topColor: 'textSub', bottom: 'shorts', bottomColor: 'textMain' },
+                    WARM: { top: 'sweater', topColor: 'accent', bottom: 'skirt', bottomColor: 'textMain' },
+                    COOL: { top: 'sweater', topColor: 'textMain', bottom: 'longPants', bottomColor: 'accent' },
+                    COLD: { top: 'sweater', topColor: 'textSub', outer: 'padding', outerColor: 'accent', bottom: 'longPants', bottomColor: 'textMain' }
+                }
+            }
+        };
+
+        // 미세먼지 단계
+        function getPm25Status(value) {
+            if (value <= 15) return { text: '좋음', color: '#16a34a', bg: 'rgba(34, 197, 94, 0.1)', border: 'rgba(34, 197, 94, 0.3)' };
+            if (value <= 35) return { text: '보통', color: '#2563eb', bg: 'rgba(59, 130, 246, 0.1)', border: 'rgba(59, 130, 246, 0.3)' };
+            if (value <= 75) return { text: '나쁨', color: '#ea580c', bg: 'rgba(249, 115, 22, 0.1)', border: 'rgba(249, 115, 22, 0.3)' };
+            return { text: '매우나쁨', color: '#dc2626', bg: 'rgba(239, 68, 68, 0.1)', border: 'rgba(239, 68, 68, 0.3)' };
+        }
+
+        // SVG 객체 렌더링 함수
+        function renderOutfit() {
+            const container = document.getElementById('fashion-canvas-container');
+            
+            // 애니메이션을 위해 컨테이너 잠깐 비우기 (또는 클래스 토글)
+            container.classList.remove('clothes-fade-enter-active');
+            container.classList.add('clothes-fade-enter');
+
+            setTimeout(() => {
+                const temp = weatherState.tempC;
+                const cond = weatherState.condition;
+                const gender = fashionState.gender;
+                const style = fashionState.style;
+                const pm25 = weatherState.pm25;
+
+                // 온도 기반 계절 결정
+                let season = 'WARM';
+                let seasonKr = '봄/가을';
+                if (temp >= 25) { season = 'HOT'; seasonKr = '한여름'; }
+                else if (temp >= 15) { season = 'WARM'; seasonKr = '봄/가을'; }
+                else if (temp >= 5) { season = 'COOL'; seasonKr = '초겨울/쌀쌀함'; }
+                else { season = 'COLD'; seasonKr = '한겨울'; }
+
+                // 테마 팔레트 결정 (미세먼지가 심하면 웜톤 경고 팔레트로 덮어씌움)
+                const themeKey = pm25 > 50 ? '미세먼지' : cond;
+                const palette = themes[themeKey];
+
+                // 코디 룰에서 해당하는 객체 묶음 가져오기
+                const rule = outfitRules[gender][style][season];
+
+                // SVG 조립 시작
+                let svgHtml = `<svg viewBox="0 0 200 350" class="w-full h-full drop-shadow-xl" xmlns="http://www.w3.org/2000/svg">`;
+
+                // 1. 공통 하체 및 신발
+                svgHtml += svgLibrary.legs;
+                svgHtml += svgLibrary.shoes;
+
+                // 2. 성별에 따른 상체 베이스
+                if (gender === '남성') svgHtml += svgLibrary.maleBase;
+                else svgHtml += svgLibrary.femaleBase;
+
+                // 3. 머리
+                svgHtml += svgLibrary.head;
+
+                // 4. 하의 렌더링
+                if (rule.bottom) {
+                    const bColor = palette[rule.bottomColor];
+                    svgHtml += svgLibrary[rule.bottom].replace('VAR_COLOR', bColor);
+                }
+
+                // 5. 상의 렌더링
+                if (rule.top) {
+                    const tColor = palette[rule.topColor];
+                    svgHtml += svgLibrary[rule.top].replace('VAR_COLOR', tColor);
+                }
+
+                // 6. 아우터 렌더링
+                if (rule.outer) {
+                    const oColor = palette[rule.outerColor];
+                    svgHtml += svgLibrary[rule.outer].replace('VAR_COLOR', oColor);
+                }
+
+                // 7. 날씨 상태에 따른 특수 악세서리 장착
+                if (cond === '비') {
+                    svgHtml += svgLibrary.umbrella.replace('VAR_COLOR', palette.accent);
+                } else if (cond === '눈' && season === 'COLD') {
+                    svgHtml += svgLibrary.scarf.replace('VAR_COLOR', palette.accent);
+                }
+
+                svgHtml += `</svg>`;
+
+                // DOM 업데이트 및 정보 갱신
+                container.innerHTML = svgHtml;
+                document.getElementById('render-season-info').innerText = `${seasonKr} 코디`;
+                document.getElementById('render-palette-info').innerText = `${palette.themeDesc} 톤`;
+
+                // 애니메이션 트리거
+                requestAnimationFrame(() => {
+                    container.classList.remove('clothes-fade-enter');
+                    container.classList.add('clothes-fade-enter-active');
+                });
+
+            }, 50); // 짧은 딜레이로 애니메이션 리플로우 유도
+        }
+
+        // 전체 UI 및 테마 업데이트
+        function updateUI() {
+            let currentThemeKey = weatherState.condition;
+            if (weatherState.pm25 > 50) currentThemeKey = '미세먼지';
+            const theme = themes[currentThemeKey];
+
+            // CSS 변수 갱신
+            document.body.style.background = theme.bg;
+            document.documentElement.style.setProperty('--card-bg', theme.cardBg);
+            document.documentElement.style.setProperty('--card-border', theme.cardBorder);
+            document.documentElement.style.setProperty('--text-main', theme.textMain);
+            document.documentElement.style.setProperty('--text-sub', theme.textSub);
+            document.documentElement.style.setProperty('--accent-color', theme.accent);
+
+            // 날씨 수치 텍스트 업데이트
+            document.getElementById('current-icon').innerText = themes[weatherState.condition].icon;
+            document.getElementById('temp-c').innerText = `${weatherState.tempC}°`;
+            document.getElementById('temp-f').innerText = `${Math.round(weatherState.tempC * 9/5 + 32)}°F`;
+            document.getElementById('current-desc').innerText = `${weatherState.condition} (${theme.themeDesc} 테마)`;
+            document.getElementById('detail-precip').innerText = `${weatherState.precip}%`;
+            document.getElementById('detail-humidity').innerText = `${weatherState.humidity}%`;
+            document.getElementById('detail-wind').innerText = `${weatherState.wind} m/s`;
+            document.getElementById('detail-sun').innerText = weatherState.sunlight;
+
+            // 미세먼지 뱃지
+            const pmStatus = getPm25Status(weatherState.pm25);
+            const pmBadge = document.getElementById('pm25-badge');
+            pmBadge.innerText = `미세먼지: ${pmStatus.text} (${weatherState.pm25}µg/m³)`;
+            pmBadge.style.color = pmStatus.color;
+            pmBadge.style.backgroundColor = pmStatus.bg;
+            pmBadge.style.borderColor = pmStatus.border;
+
+            // UI 변경 시 코디도 즉시 재렌더링
+            renderOutfit();
+        }
+
+        // 패션 섹션 컨트롤 (버튼 누르면 즉시 반영)
+        function setGender(gender) {
+            fashionState.gender = gender;
+            const btnM = document.getElementById('btn-gender-m');
+            const btnF = document.getElementById('btn-gender-f');
+            
+            if (gender === '남성') {
+                btnM.className = "px-4 py-2 rounded-lg text-sm font-medium transition-all bg-theme-accent text-white shadow-sm";
+                btnF.className = "px-4 py-2 rounded-lg text-sm font-medium transition-all text-theme-sub hover:bg-white/50";
+            } else {
+                btnF.className = "px-4 py-2 rounded-lg text-sm font-medium transition-all bg-theme-accent text-white shadow-sm";
+                btnM.className = "px-4 py-2 rounded-lg text-sm font-medium transition-all text-theme-sub hover:bg-white/50";
+            }
+            renderOutfit();
+        }
+
+        function styleChanged() {
+            fashionState.style = document.getElementById('style-select').value;
+            renderOutfit();
+        }
+
+        // 랜덤 날씨 생성
+        function randomizeWeather() {
+            const conditions = ['맑음', '흐림', '비', '눈'];
+            const sunlights = ['매우 강함', '강함', '보통', '약함', '없음'];
+            
+            weatherState.condition = conditions[Math.floor(Math.random() * conditions.length)];
+            
+            if (weatherState.condition === '눈') weatherState.tempC = Math.floor(Math.random() * 10 - 10);
+            else if (weatherState.condition === '비') weatherState.tempC = Math.floor(Math.random() * 15 + 10);
+            else weatherState.tempC = Math.floor(Math.random() * 35 - 5);
+
+            weatherState.humidity = Math.floor(Math.random() * 60 + 30);
+            weatherState.wind = (Math.random() * 8).toFixed(1);
+            weatherState.precip = (weatherState.condition === '비' || weatherState.condition === '눈') ? Math.floor(Math.random() * 40 + 60) : Math.floor(Math.random() * 30);
+            weatherState.sunlight = sunlights[Math.floor(Math.random() * sunlights.length)];
+            weatherState.pm25 = Math.floor(Math.random() * 100);
+
+            updateUI();
+        }
+
+        // 초기화
+        window.onload = () => {
+            updateUI();
+        };
+
+    </script>
+</body>
+</html>
