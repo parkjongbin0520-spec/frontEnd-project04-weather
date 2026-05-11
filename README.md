@@ -79,6 +79,6 @@
   
 - **Scrum Master:**
   
-- **Tech Writer:**
+- **Tech Writer:**안진혁
   
 - **DevRel (Presenter):**
