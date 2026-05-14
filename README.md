@@ -1,3 +1,5 @@
+커서
+파이썬
 # 🚀 프로젝트 명 (서비스 이름을 적어주세요)
 
 > **"여기에 서비스를 매력적으로 표현하는 한 줄 소개를 적어주세요."**
@@ -46,8 +48,8 @@
 
 ### 📌 팀 규칙
 
-- **소통 채널:** (예: 디스코드)
-- **정기 회의:** (예: 매주 목요일 오후 6시)
+- **소통 채널:** 디스코드, 명지 전문대학교(카페)
+- **정기 회의:** 매주 수요일 오후 6시
 - **Git Commit 룰:** `feat:`(기능), `fix:`(버그), `docs:`(문서), `design:`(UI) 사용
 - **리뷰 룰:** `main` 브랜치 병합 전 최소 1명 이상 승인 필요
 
@@ -56,7 +58,7 @@
 - **PM (Product Manager):** 배준서
 - **Tech Lead (GitHub):** 박종빈
 - **UI/UX Designer:** 최서희, 강선유
-- **QA Engineer:**
-- **Scrum Master:**
-- **Tech Writer:**안진혁
-- **DevRel (Presenter):**
+- **QA Engineer:** 윤지현, 배준서
+- **Scrum Master:** 이태윤
+- **Tech Writer:** 안진혁
+- **DevRel (Presenter):** 최서희
