@@ -47,6 +47,26 @@
         line-height: 1.4;
         color: #888;
       }
+      .header-img {
+        display: flex;
+        width: 70%;
+
+        position: absolute;
+        left: 100px;
+        top: 20px;
+      }
+
+      .disflex {
+        display: flex;
+      }
+
+      .disflex .relative {
+        position: relative;
+      }
+
+      .disflex .absolute {
+        position: absolute;
+      }
 
       /* ---------------------------------
            앱 메인 컨테이너 (스크롤 02, 03 포함)
@@ -211,6 +231,13 @@
   <body>
     <section class="screen-01">
       <div class="top-logo">로고</div>
+      <div>
+        <img
+          src="assets/images/headerimg.png"
+          alt="헤더 이미지"
+          class="header-img"
+        />
+      </div>
       <h1>기온 및 날씨<br />정보</h1>
     </section>
 
